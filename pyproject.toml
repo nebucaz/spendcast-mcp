@@ -1,7 +1,27 @@
 [project]
 name = "spendcast-mcp"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+description = "MCP Server for Spendcast GraphDB"
+dependencies = [
+    "fastmcp",
+    "httpx",
+    "pydantic",
+    "python-dotenv",
+]
+requires-python = ">=3.8"
+
+[project.scripts]
+spendcast-mcp = "spendcast_mcp.server:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-asyncio",
+    "respx",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

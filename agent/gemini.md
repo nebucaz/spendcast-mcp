@@ -37,8 +37,7 @@ Technology Stack
 Implementation Status: ✅ Complete - Direct process management, universal command support, enhanced error messaging, JSON-RPC protocol, process lifecycle management, and tool execution all working.
 
 ## Project Structure Overview
-
-See mcp-browser-architecture.md for detailed component organization. Key locations:
+Key locations:
 
     src/ - Python mcp server-files
     test/ - Python unittests
