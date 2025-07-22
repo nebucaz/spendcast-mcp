@@ -8,7 +8,11 @@ dependencies = [
     "pydantic",
     "python-dotenv",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project.scripts]
 spendcast-mcp = "spendcast_mcp.server:main"
@@ -25,3 +29,13 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "respx>=0.22.0",
+]

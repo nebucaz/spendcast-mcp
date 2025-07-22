@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import os
@@ -6,7 +5,7 @@ from typing import Any, Dict
 
 import httpx
 from dotenv import load_dotenv
-from fastmcp import FastMCPServer, Tool, ToolContext
+from fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
 # Configure logging
@@ -30,9 +29,11 @@ def get_config() -> GraphDBConfig:
         raise ValueError("GRAPHDB_URL environment variable not set.")
     return GraphDBConfig(url=graphdb_url)
 
+mcp = FastMCP()
 
 # --- Tool Definition ---
-async def execute_sparql(ctx: ToolContext, query: str) -> Dict[str, Any]:
+@mcp.tool()
+async def execute_sparql(ctx: Context, query: str) -> Dict[str, Any]:
     """
     Executes a SPARQL query against the GraphDB instance.
 
@@ -69,24 +70,27 @@ async def execute_sparql(ctx: ToolContext, query: str) -> Dict[str, Any]:
         return {"error": "Invalid JSON response from GraphDB."}
 
 
-# --- Server Setup ---
-def main():
-    """Main function to set up and run the MCP server."""
-    load_dotenv()  # Load environment variables from .env file
+# # --- Server Setup ---
+# def main():
+#     """Main function to set up and run the MCP server."""
+#     load_dotenv()  # Load environment variables from .env file
 
-    get_config()  # Validate config on startup
+#     get_config()  # Validate config on startup
 
-    server = FastMCPServer()
-    execute_sparql_tool = Tool(
-        name="execute_sparql",
-        description="Executes a SPARQL query against the Spendcast GraphDB.",
-        fn=execute_sparql,
-    )
-    server.register_tool(execute_sparql_tool)
+#     mcp = FastMCP()
+#     execute_sparql_tool = Tool(
+#         name="execute_sparql",
+#         description="Executes a SPARQL query against the Spendcast GraphDB.",
+#         fn=execute_sparql,
+#     )
+#     mcp.register_tool(execute_sparql_tool)
 
-    logging.info("Starting Spendcast MCP server...")
-    asyncio.run(server.start())
+#     logging.info("Starting Spendcast MCP server...")
+#     asyncio.run(server.start())
 
 
 if __name__ == "__main__":
-    main()
+    load_dotenv()  # Load environment variables from .env file
+    get_config()  # Validate config on startup
+
+    mcp.run()

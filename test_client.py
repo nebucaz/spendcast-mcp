@@ -1,12 +1,12 @@
 import asyncio
 import json
 
-from fastmcp.client import MCPClient
+from fastmcp.client import Client
 
 
 async def main():
     """Connects to the MCP server and executes a SPARQL query."""
-    client = MCPClient()
+    client = Client("http://localhost:7200")
     # Assumes the server is running and listening on the default port
     await client.start()
 

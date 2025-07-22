@@ -1,12 +1,14 @@
 import os
 from unittest.mock import MagicMock
 
+import json
 import httpx
 import pytest
 import pytest_asyncio
 import respx
+from fastmcp import Client, Context
 
-from spendcast_mcp.server import ToolContext, execute_sparql, get_config
+from spendcast_mcp.server import mcp, execute_sparql, get_config
 
 # Mock GraphDB URL for testing
 TEST_GRAPHDB_URL = "http://test-graphdb:7200/repositories/test"
@@ -16,7 +18,7 @@ TEST_GRAPHDB_URL = "http://test-graphdb:7200/repositories/test"
 def mock_env():
     """Fixture to set environment variables for tests."""
     os.environ["GRAPHDB_URL"] = TEST_GRAPHDB_URL
-    yield
+    yield os.environ
     del os.environ["GRAPHDB_URL"]
 
 
@@ -26,10 +28,9 @@ def test_get_config_success(mock_env):
     assert config.url == TEST_GRAPHDB_URL
 
 
-def test_get_config_missing_variable():
+def test_get_config_missing_variable(monkeypatch):
     """Test that get_config raises ValueError if the env var is not set."""
-    if "GRAPHDB_URL" in os.environ:
-        del os.environ["GRAPHDB_URL"]
+    monkeypatch.delenv("GRAPHDB_URL", raising=False)
     with pytest.raises(ValueError, match="GRAPHDB_URL environment variable not set."):
         get_config()
 
@@ -54,15 +55,20 @@ async def test_execute_sparql_success(mock_env, mocked_sparql_endpoint):
         return_value=httpx.Response(200, json=mock_response_data)
     )
 
-    mock_ctx = MagicMock(spec=ToolContext)
+    # mock_ctx = MagicMock(spec=Context)
     query = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1"
 
-    result = await execute_sparql(mock_ctx, query)
+    # result = await execute_sparql(mock_ctx, query)
+    async with Client(mcp) as client:
+        result = await client.call_tool("execute_sparql", {"query": query})
 
-    assert result == mock_response_data
-    assert mocked_sparql_endpoint.calls.call_count == 1
-    request = mocked_sparql_endpoint.calls.last.request
-    assert request.content == b"query=SELECT+%3Fs+%3Fp+%3Fo+WHERE+%7B%3Fs+%3Fp+%3Fo%7D+LIMIT+1"
+        assert result.data == mock_response_data
+        assert mocked_sparql_endpoint.calls.call_count == 1
+        request = mocked_sparql_endpoint.calls.last.request
+        assert (
+            request.content
+            == b"query=SELECT+%3Fs+%3Fp+%3Fo+WHERE+%7B%3Fs+%3Fp+%3Fo%7D+LIMIT+1"
+        )
 
 
 @pytest.mark.asyncio
@@ -71,17 +77,21 @@ async def test_execute_sparql_http_error(mock_env, mocked_sparql_endpoint):
     mocked_sparql_endpoint.post(url=TEST_GRAPHDB_URL).mock(
         return_value=httpx.Response(500, text="Internal Server Error")
     )
-    mock_ctx = MagicMock(spec=ToolContext)
-    result = await execute_sparql(mock_ctx, "SELECT ?s")
-    assert "error" in result
-    assert "500" in result["error"]
+
+    async with Client(mcp) as client:
+        result = await client.call_tool("execute_sparql", {"query": "SELECT ?s"})
+        assert "error" in result.data
+        assert "500" in result.data["error"]
 
 
 @pytest.mark.asyncio
 async def test_execute_sparql_request_error(mock_env, mocked_sparql_endpoint):
     """Test handling of a network request error."""
-    mocked_sparql_endpoint.post(url=TEST_GRAPHDB_URL).mock(side_effect=httpx.ConnectError("Connection failed"))
-    mock_ctx = MagicMock(spec=ToolContext)
-    result = await execute_sparql(mock_ctx, "SELECT ?s")
-    assert "error" in result
-    assert "Connection failed" in result["error"]
+    mocked_sparql_endpoint.post(url=TEST_GRAPHDB_URL).mock(
+        side_effect=httpx.ConnectError("Connection failed")
+    )
+
+    async with Client(mcp) as client:
+        result = await client.call_tool("execute_sparql", {"query": "SELECT ?s"})
+        assert "error" in result.data
+        assert "Connection failed" in result.data["error"]
