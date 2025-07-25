@@ -19,15 +19,29 @@ class GraphDBConfig(BaseModel):
     """Configuration for the GraphDB connection."""
 
     url: str = Field(..., description="The URL of the GraphDB SPARQL endpoint.")
+    username: str = Field(..., description="The username for GraphDB authentication.")
+    password: str = Field(..., description="The password for GraphDB authentication.")
 
 
 def get_config() -> GraphDBConfig:
     """Loads configuration from environment variables."""
     graphdb_url = os.getenv("GRAPHDB_URL")
+    graphdb_user = os.getenv("GRAPHDB_USER")
+    graphdb_password = os.getenv("GRAPHDB_PASSWORD")
+
     if not graphdb_url:
         logging.error("GRAPHDB_URL environment variable not set.")
         raise ValueError("GRAPHDB_URL environment variable not set.")
-    return GraphDBConfig(url=graphdb_url)
+    if not graphdb_user:
+        logging.error("GRAPHDB_USER environment variable not set.")
+        raise ValueError("GRAPHDB_USER environment variable not set.")
+    if not graphdb_password:
+        logging.error("GRAPHDB_PASSWORD environment variable not set.")
+        raise ValueError("GRAPHDB_PASSWORD environment variable not set.")
+
+    return GraphDBConfig(
+        url=graphdb_url, username=graphdb_user, password=graphdb_password
+    )
 
 mcp = FastMCP()
 
@@ -49,11 +63,12 @@ async def execute_sparql(ctx: Context, query: str) -> Dict[str, Any]:
         "Accept": "application/sparql-results+json",
     }
     data = {"query": query}
+    auth = httpx.BasicAuth(config.username, config.password)
 
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                config.url, headers=headers, data=data, timeout=30.0
+                config.url, headers=headers, data=data, auth=auth, timeout=30.0
             )
             response.raise_for_status()
             return response.json()

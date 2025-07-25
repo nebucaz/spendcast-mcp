@@ -1,4 +1,5 @@
 import os
+import base64
 from unittest.mock import MagicMock
 
 import json
@@ -12,26 +13,44 @@ from spendcast_mcp.server import mcp, execute_sparql, get_config
 
 # Mock GraphDB URL for testing
 TEST_GRAPHDB_URL = "http://test-graphdb:7200/repositories/test"
+TEST_USER = "testuser"
+TEST_PASSWORD = "testpassword"
 
 
 @pytest.fixture
 def mock_env():
     """Fixture to set environment variables for tests."""
     os.environ["GRAPHDB_URL"] = TEST_GRAPHDB_URL
+    os.environ["GRAPHDB_USER"] = TEST_USER
+    os.environ["GRAPHDB_PASSWORD"] = TEST_PASSWORD
     yield os.environ
     del os.environ["GRAPHDB_URL"]
+    del os.environ["GRAPHDB_USER"]
+    del os.environ["GRAPHDB_PASSWORD"]
 
 
 def test_get_config_success(mock_env):
     """Test that get_config successfully loads the URL from the environment."""
     config = get_config()
     assert config.url == TEST_GRAPHDB_URL
+    assert config.username == TEST_USER
+    assert config.password == TEST_PASSWORD
 
 
-def test_get_config_missing_variable(monkeypatch):
-    """Test that get_config raises ValueError if the env var is not set."""
-    monkeypatch.delenv("GRAPHDB_URL", raising=False)
-    with pytest.raises(ValueError, match="GRAPHDB_URL environment variable not set."):
+@pytest.mark.parametrize(
+    "missing_var, error_msg",
+    [
+        ("GRAPHDB_URL", "GRAPHDB_URL environment variable not set."),
+        ("GRAPHDB_USER", "GRAPHDB_USER environment variable not set."),
+        ("GRAPHDB_PASSWORD", "GRAPHDB_PASSWORD environment variable not set."),
+    ],
+)
+def test_get_config_missing_variable(monkeypatch, mock_env, missing_var, error_msg):
+    """Test that get_config raises ValueError if an env var is not set."""
+    # mock_env already sets them, so we just need to remove one
+    monkeypatch.delenv(missing_var)
+
+    with pytest.raises(ValueError, match=error_msg):
         get_config()
 
 
@@ -69,6 +88,11 @@ async def test_execute_sparql_success(mock_env, mocked_sparql_endpoint):
             request.content
             == b"query=SELECT+%3Fs+%3Fp+%3Fo+WHERE+%7B%3Fs+%3Fp+%3Fo%7D+LIMIT+1"
         )
+        auth_header = request.headers["authorization"]
+        expected_token = base64.b64encode(
+            f"{TEST_USER}:{TEST_PASSWORD}".encode()
+        ).decode()
+        assert auth_header == f"Basic {expected_token}"
 
 
 @pytest.mark.asyncio
