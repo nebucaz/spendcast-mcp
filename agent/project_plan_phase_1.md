@@ -24,7 +24,7 @@ Status: ✅ Completed
  - Unittest: Create an MCP client and query the graphdb instance `select ?s ?p ?o where {?s ? p ?} limit 10` and ensure it returns a error-free response of 10 entities when using authentication
 
 ## Story 1.2: Graphdb API Authentication
-Status: ⏳ Pending
+Status: 🔄 In Progress
 
 ### Acceptance Criteria
 - The MCP-Server can connect to the graphdb instance using the credentials defined in the .env file
@@ -34,3 +34,4 @@ Status: ⏳ Pending
 
 ### Testing
 - Extend the Unittest with a mock, that requires basic authentication
+- Extend `test_server.py` to use a client that performs Basic Auth
